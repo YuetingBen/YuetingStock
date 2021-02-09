@@ -81,7 +81,9 @@ class STOCK():
             "f141": "f141",
             "f152": "f152"
         }
-    
+        # Stock daily value items
+        self.StockDataItemList = ["DateList", "OpenDataList", "CloseDataList", "HighDataList", "LowDataList", "TurnoverList", "businessVolume", "amplitude", "change", "changeAmount", "TurnoverRateList"]
+
         self.AllStockList = []
         self.Workbook = xlwt.Workbook(encoding = 'ascii')
         
@@ -279,13 +281,13 @@ class STOCK():
         stockHtmlDataInfoList = result[0].split("\",\"")[1:-1]
         
         dailyStockInfoSheet = self.Workbook.add_sheet('Daily')
-        excelTitleList = ["date", "open", "close", "high", "low", "code", "turnover", "amplitude", "change", "changeAmount", "turnoverRate"]
+
         rowNum = 0
         columnNum = 0
         # Write the title
-        for i in range(0, len(excelTitleList)):
+        for i in range(0, len(self.StockDataItemList)):
             columnNum = i
-            dailyStockInfoSheet.write(rowNum, columnNum, excelTitleList[i])
+            dailyStockInfoSheet.write(rowNum, columnNum, self.StockDataItemList[i])
         rowNum = rowNum + 1
         
         for stockHtmlDataInfo in stockHtmlDataInfoList:
@@ -296,7 +298,6 @@ class STOCK():
             rowNum = rowNum + 1
             
     def formatDataforKLine(self, codeNum, kLineType, marketIndex):
-        kLineDataListDict = {'DateList':[], 'OpenDataList':[], 'CloseDataList':[], 'HighDataList':[], 'LowDataList':[], 'TurnoverList':[], 'TurnoverRateList':[]}
         codeList = self.getAllStockDataList('code')
         typeList = self.getAllStockDataList('type')
         
@@ -334,7 +335,6 @@ class STOCK():
         
         stockHtmlDataInfoList = result[0][1:-1].split("\",\"")
 
-        excelTitleList = ["DateList", "OpenDataList", "CloseDataList", "HighDataList", "LowDataList", "TurnoverList", "businessVolume", "amplitude", "change", "changeAmount", "TurnoverRateList"]
         # K-Line data sequence to follow function mpf.candlestick_ohlc
         # Shanghai Market Example
         # date,           open,    close,   high,     low    turnover  
@@ -350,19 +350,19 @@ class STOCK():
         # ['2021-02-05', '12.77', '13.04', '13.39', '12.65', '54481', '71395356.00', '5.88', '3.57', '0.45', '2.63']
         j = 0
         kLineDataListDict = {}
-        for i in range(0, len(excelTitleList)):
-            kLineDataListDict[excelTitleList[i]] = []
+        for i in range(0, len(self.StockDataItemList)):
+            kLineDataListDict[self.StockDataItemList[i]] = []
             
         for i in range(0, len(stockHtmlDataInfoList)):
             stockHtmlDataInfo = stockHtmlDataInfoList[i].split(',')
-            for j in range(0, len(excelTitleList)):
-                if("DateList" == excelTitleList[j]):
-                    kLineDataListDict[excelTitleList[j]].append(stockHtmlDataInfo[j])
+            for j in range(0, len(self.StockDataItemList)):
+                if("DateList" == self.StockDataItemList[j]):
+                    kLineDataListDict[self.StockDataItemList[j]].append(stockHtmlDataInfo[j])
                 else:
                     try:
-                        kLineDataListDict[excelTitleList[j]].append(float(stockHtmlDataInfo[j]))
+                        kLineDataListDict[self.StockDataItemList[j]].append(float(stockHtmlDataInfo[j]))
                     except:
-                        kLineDataListDict[excelTitleList[j]].append(0)
+                        kLineDataListDict[self.StockDataItemList[j]].append(0)
         
         return(kLineDataListDict)
            
@@ -395,7 +395,15 @@ class STOCK():
         # Release memory
         del kLineWorkbook 
     
-    def displayKLine(self, codeNum, path, displayKLineDataListDict, point1, point2):
+    def displayKLine(self, codeNum, path, displayKLineDataListDict, points):
+        # Paramater:
+        # 
+        # point1 is the low point of big gains
+        # point2 is the high point of big gains
+        # point3 is the buy point, total 100% TurnoverRate before point1(the low point of big gains)
+        # point4 is the buy point, total 200% TurnoverRate before point1(the low point of big gains)
+        # point5 is the buy point, total 300% TurnoverRate before point1(the low point of big gains)
+        (point1, point2, point3, point4, point5) = points
         kLineDateList = displayKLineDataListDict['DateList']
         kLineOpenDataList = displayKLineDataListDict['OpenDataList']
         kLineCloseDataList = displayKLineDataListDict['CloseDataList']
@@ -470,6 +478,29 @@ class STOCK():
         
         axDayVolumeRate.plot(list(range(0, len(kLineTurnoverRateList))), kLineTurnoverRateList)
         
+        # Mark point3 and point4 at axDayVolumeRate diagram
+        # point3 is the buy point, total 100% TurnoverRate before point1(the low point of big gains)
+        # point4 is the buy point, total 200% TurnoverRate before point1(the low point of big gains)
+        # point5 is the buy point, total 300% TurnoverRate before point1(the low point of big gains)
+        axDayVolumeRate.plot([point1, point1], [min(kLineTurnoverRateList), max(kLineTurnoverRateList)], color = 'green', linewidth=2)
+        if(0 != point3):
+            axDayVolumeRate.plot([point3, point3], [min(kLineTurnoverRateList), max(kLineTurnoverRateList)], color = 'red', linewidth=2)
+            if(max(kLineTurnoverRateList) > 2 * kLineTurnoverRateList[point3]):
+                axDayVolumeRate.text(point3, (kLineTurnoverRateList[point3] + max(kLineTurnoverRateList))/2, '100%')
+            else:
+                axDayVolumeRate.text(point3, (kLineTurnoverRateList[point3] + min(kLineTurnoverRateList))/2, '100%')
+        if(0 != point4):
+            axDayVolumeRate.plot([point4, point4], [min(kLineTurnoverRateList), max(kLineTurnoverRateList)], color = 'red', linewidth=2)
+            if(max(kLineTurnoverRateList) > 2 * kLineTurnoverRateList[point4]):
+                axDayVolumeRate.text(point4, (kLineTurnoverRateList[point4] + max(kLineTurnoverRateList))/2, '200%')
+            else:
+                axDayVolumeRate.text(point4, (kLineTurnoverRateList[point4] + min(kLineTurnoverRateList))/2, '200%')
+        if(0 != point5):
+            axDayVolumeRate.plot([point5, point5], [min(kLineTurnoverRateList), max(kLineTurnoverRateList)], color = 'red', linewidth=2)
+            if(max(kLineTurnoverRateList) > 2 * kLineTurnoverRateList[point5]):
+                axDayVolumeRate.text(point5, (kLineTurnoverRateList[point5] + max(kLineTurnoverRateList))/2, '300%')
+            else:
+                axDayVolumeRate.text(point5, (kLineTurnoverRateList[point5] + min(kLineTurnoverRateList))/2, '300%')
         maxDisplayLables = 50
         count = len(kLineDateList)
         
@@ -610,64 +641,69 @@ class STOCK():
             os.makedirs(excelPath) 
         else:
             pass
-        totalDataNumber = 350
-        preDataNumber = 200
+        totalDataNumber = 500
+        preDataNumber = 350
         deltaDataNumber = 15
         deltaDataMultiple = 2
-        point1 = preDataNumber
-        point2 = point1 + deltaDataNumber
+
         
         kLineDataListDict = self.formatDataforKLine(codeNum, kLineType = 'day', marketIndex = 'NONE')
         kLineDateList = kLineDataListDict['DateList']
-        kLineOpenDataList = kLineDataListDict['OpenDataList']
         kLineCloseDataList = kLineDataListDict['CloseDataList']
-        kLineHighDataList = kLineDataListDict['HighDataList']
-        kLineLowDataList = kLineDataListDict['LowDataList']
-        kLineTurnoverList = kLineDataListDict['TurnoverList']
-        kLineTurnoverRateList = kLineDataListDict['TurnoverRateList']
+        dataLen = len(kLineDateList)
+
+        displayKLineDataListDict = {}
         
         startNum = 0
-        for i in range(0, len(kLineDateList)):
+        for i in range(0, dataLen):
             if('2017' in kLineDateList[i]):
                 startNum = i
                 break 
-
-        while(startNum + totalDataNumber < len(kLineDateList)):
-            for j in range(startNum, (len(kLineDateList) - deltaDataNumber)):
+        # Search the main part big gains line
+        # point1 is the low point of big gains
+        # point2 is the high point of big gains
+        point1 = preDataNumber
+        point2 = point1 + deltaDataNumber
+        while(startNum + totalDataNumber < dataLen):
+            for j in range(startNum, (dataLen - deltaDataNumber)):
                 if(float(kLineCloseDataList[j]) * deltaDataMultiple < float(kLineCloseDataList[j + deltaDataNumber])):
-                    if((totalDataNumber - preDataNumber) < (len(kLineDateList) - j)):
-                        displayKLineDateList = kLineDateList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineOpenDataList = kLineOpenDataList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineCloseDataList = kLineCloseDataList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineHighDataList = kLineHighDataList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineLowDataList = kLineLowDataList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineTurnoverList = kLineTurnoverList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-                        displayKLineTurnoverRateList = kLineTurnoverRateList[(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
-
+                    if((totalDataNumber - preDataNumber) < (dataLen - j)):
+                        for element in self.StockDataItemList:
+                            displayKLineDataListDict[element] = kLineDataListDict[element][(j - preDataNumber) : (j + totalDataNumber - preDataNumber)]
                     else:
-                        displayKLineDateList = kLineDateList[(len(kLineDateList) - totalDataNumber) : len(kLineDateList)]
-                        displayKLineOpenDataList = kLineOpenDataList[(len(kLineDateList) - totalDataNumber) : len(kLineOpenDataList)]
-                        displayKLineCloseDataList = kLineCloseDataList[(len(kLineDateList) - totalDataNumber) : len(kLineCloseDataList)]
-                        displayKLineHighDataList = kLineHighDataList[(len(kLineDateList) - totalDataNumber) : len(kLineHighDataList)]
-                        displayKLineLowDataList = kLineLowDataList[(len(kLineDateList) - totalDataNumber) : len(kLineLowDataList)]
-                        displayKLineTurnoverList = kLineTurnoverList[(len(kLineDateList) - totalDataNumber) : len(kLineTurnoverList)]
-                        displayKLineTurnoverRateList = kLineTurnoverRateList[(len(kLineDateList) - totalDataNumber) : len(kLineTurnoverRateList)]
-                        
-                        point1 = totalDataNumber - (len(kLineDateList) - j)
+                        for element in self.StockDataItemList:
+                            displayKLineDataListDict[element] = kLineDataListDict[element][(dataLen - totalDataNumber) : dataLen]
+                        point1 = totalDataNumber - (dataLen - j)
                         point2 = point1 + deltaDataNumber
                         
                     startNum = j + totalDataNumber - preDataNumber    
-                    displayKLineDataListDict = {}
-                    displayKLineDataListDict['DateList'] = displayKLineDateList
-                    displayKLineDataListDict['OpenDataList'] = displayKLineOpenDataList
-                    displayKLineDataListDict['CloseDataList'] = displayKLineCloseDataList
-                    displayKLineDataListDict['HighDataList'] = displayKLineHighDataList
-                    displayKLineDataListDict['LowDataList'] = displayKLineLowDataList
-                    displayKLineDataListDict['TurnoverList'] = displayKLineTurnoverList
-                    displayKLineDataListDict['TurnoverRateList'] = displayKLineTurnoverRateList
-
-                    self.displayKLine(codeNum, imagePath, displayKLineDataListDict, point1, point2)
-                    self.saveKLineExcel(codeNum, excelPath, displayKLineDataListDict, point1, point2)
+                    
+                    # Search the main part buy point
+                    # point3 is the buy point, total 100% TurnoverRate before point1(the low point of big gains)
+                    # point4 is the buy point, total 200% TurnoverRate before point1(the low point of big gains)
+                    # point5 is the buy point, total 300% TurnoverRate before point1(the low point of big gains)
+                    point3 = 0
+                    point4 = 0
+                    point5 = 0
+                    startPoint = point1
+                    turnoverRateSumValue = 0
+                    while(startPoint > 0):
+                        turnoverRateSumValue = turnoverRateSumValue + displayKLineDataListDict["TurnoverRateList"][startPoint]
+                        # print("startPoint: " + str(startPoint) + "   turnoverRateSumValue:" + str(turnoverRateSumValue))
+                        startPoint = startPoint - 1
+                        if(turnoverRateSumValue > 100):
+                            if(0 ==point3):
+                                point3 = startPoint
+                        if(turnoverRateSumValue > 200):
+                            if(0 ==point4):
+                                point4 = startPoint
+                        if(turnoverRateSumValue > 300):
+                            if(0 ==point5):
+                                point5 = startPoint
+                                
+                            startPoint = 0
+                    points = (point1, point2, point3, point4, point5)    
+                    self.displayKLine(codeNum, imagePath, displayKLineDataListDict, points)
                     
                     del displayKLineDataListDict
                     gc.collect()
@@ -676,12 +712,6 @@ class STOCK():
         # Release memory
         del kLineDataListDict
         del kLineDateList
-        del kLineOpenDataList
-        del kLineCloseDataList
-        del kLineHighDataList
-        del kLineLowDataList
-        del kLineTurnoverList
-        del kLineTurnoverRateList
     
 def Main():
     app = wx.App()
